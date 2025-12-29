@@ -1,0 +1,9 @@
+Row 1
+Model: Delta 2 EU
+Capacity: 1024 Wh
+Region: EU
+
+Row 2
+Model: Delta 2 TR
+Capacity: 1024 Wh
+Region: TR
