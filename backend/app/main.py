@@ -1,13 +1,22 @@
 import hashlib
 import os
+import uuid
 from datetime import datetime
 from fastapi import FastAPI, Depends, File, UploadFile, Form, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from .db import get_db
-from .models import Evidence, FieldCandidate, SKU, ERDecision, ChangeLog
-from .schemas import EvidenceOut, ERResolveRequest, ERDecisionOut, FieldCandidateOut, SKUStatusOut, ExportResult
+from .models import Evidence, FieldValue, SKU, SKUAlias, ERDecision, ChangeLog
+from .schemas import (
+    EvidenceOut,
+    SKUCreate,
+    SKUOut,
+    SKUAliasCreate,
+    FieldValueOut,
+    ERDecisionOut,
+    ExportResult,
+)
 from .modules.extraction.extractor import extract_fields
 from .modules.normalization.normalizer import normalize_field
 from .modules.er.engine import resolve_entities, store_decision
@@ -41,13 +50,54 @@ def hash_file(file_path: str) -> str:
     return hasher.hexdigest()
 
 
-@app.post("/evidence/upload", response_model=EvidenceOut)
+@app.post("/api/skus", response_model=SKUOut)
+def create_sku(payload: SKUCreate, db: Session = Depends(get_db)):
+    sku_id = str(uuid.uuid4())
+    sku = SKU(
+        id=sku_id,
+        brand=payload.brand,
+        canonical_name=payload.canonical_name,
+        category=payload.category,
+        status="draft",
+    )
+    db.add(sku)
+    db.commit()
+    db.refresh(sku)
+    return sku
+
+
+@app.get("/api/skus", response_model=list[SKUOut])
+def list_skus(db: Session = Depends(get_db)):
+    skus = db.query(SKU).all()
+    return skus
+
+
+@app.get("/api/skus/{sku_id}", response_model=SKUOut)
+def get_sku(sku_id: str, db: Session = Depends(get_db)):
+    sku = db.query(SKU).filter(SKU.id == sku_id).first()
+    if not sku:
+        raise HTTPException(status_code=404, detail="SKU not found")
+    return sku
+
+
+@app.post("/api/skus/{sku_id}/aliases", response_model=SKUOut)
+def add_alias(sku_id: str, payload: SKUAliasCreate, db: Session = Depends(get_db)):
+    sku = db.query(SKU).filter(SKU.id == sku_id).first()
+    if not sku:
+        raise HTTPException(status_code=404, detail="SKU not found")
+    alias = SKUAlias(sku_id=sku_id, alias_type=payload.alias_type, alias_value=payload.alias_value)
+    db.add(alias)
+    db.commit()
+    db.refresh(sku)
+    return sku
+
+
+@app.post("/api/evidence", response_model=EvidenceOut)
 def upload_evidence(
     source_type: str = Form(...),
-    capture_date: str = Form(...),
+    captured_at: str = Form(...),
     issuer: str = Form(...),
     reliability_score: float = Form(...),
-    scope: str = Form(None),
     page_section: str = Form(None),
     evidence_id: str = Form(None),
     file: UploadFile = File(...),
@@ -59,7 +109,7 @@ def upload_evidence(
         handle.write(file.file.read())
 
     file_hash = hash_file(file_path)
-    capture_dt = datetime.fromisoformat(capture_date)
+    captured_dt = datetime.fromisoformat(captured_at)
 
     existing = None
     if evidence_id:
@@ -69,8 +119,8 @@ def upload_evidence(
         if existing.file_hash != file_hash:
             existing.file_hash = file_hash
             existing.file_path = file_path
-            existing.capture_date = capture_dt
-            db.query(FieldCandidate).filter(FieldCandidate.evidence_id == existing.id).update(
+            existing.captured_at = captured_dt
+            db.query(FieldValue).filter(FieldValue.evidence_id == existing.id).update(
                 {"status": "draft", "needs_review": True}
             )
             db.add(
@@ -89,9 +139,8 @@ def upload_evidence(
         id=evidence_id or f"ev-{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}",
         source_type=source_type,
         file_hash=file_hash,
-        capture_date=capture_dt,
+        captured_at=captured_dt,
         issuer=issuer,
-        scope=scope,
         page_section=page_section,
         reliability_score=reliability_score,
         file_path=file_path,
@@ -102,8 +151,11 @@ def upload_evidence(
     return evidence
 
 
-@app.post("/extraction/run/{evidence_id}", response_model=list[FieldCandidateOut])
-def run_extraction(evidence_id: str, db: Session = Depends(get_db)):
+@app.post("/api/extract/{sku_id}", response_model=list[FieldValueOut])
+def run_extraction(sku_id: str, evidence_id: str = Form(...), db: Session = Depends(get_db)):
+    sku = db.query(SKU).filter(SKU.id == sku_id).first()
+    if not sku:
+        raise HTTPException(status_code=404, detail="SKU not found")
     evidence = db.query(Evidence).filter(Evidence.id == evidence_id).first()
     if not evidence:
         raise HTTPException(status_code=404, detail="Evidence not found")
@@ -111,31 +163,43 @@ def run_extraction(evidence_id: str, db: Session = Depends(get_db)):
     extraction = extract_fields(evidence.file_path)
     candidates = []
     for candidate in extraction["candidates"]:
-        normalized = normalize_field(candidate["field_name"], candidate["raw_value"])
-        field_candidate = FieldCandidate(
-            sku_id=evidence.scope or "unknown",
+        value, unit = normalize_field(candidate["field_name"], candidate["raw_value"])
+        field_value = FieldValue(
+            sku_id=sku_id,
             evidence_id=evidence.id,
             field_name=candidate["field_name"],
-            raw_value=candidate["raw_value"],
-            normalized_value=normalized,
+            value=value,
+            unit=unit,
             confidence=0.8,
             status="draft",
             needs_review=extraction["needs_review"],
         )
-        db.add(field_candidate)
-        candidates.append(field_candidate)
+        db.add(field_value)
+        candidates.append(field_value)
     db.commit()
     return candidates
 
 
-@app.post("/er/resolve", response_model=ERDecisionOut)
-def resolve_er(payload: ERResolveRequest, db: Session = Depends(get_db)):
-    sku_id, score, explanation, needs_review, source = resolve_entities(
-        db, payload.evidence_id, payload.observed_identifiers
-    )
+@app.post("/api/validate/{sku_id}")
+def validate_sku(sku_id: str, db: Session = Depends(get_db)):
+    status, blocked = resolve_conflicts(db, sku_id)
+    return {"status": status, "blocked_fields": blocked}
+
+
+@app.post("/api/export", response_model=ExportResult)
+def export_sku(sku_id: str = Form(...), exported_by: str = Form("system"), db: Session = Depends(get_db)):
+    path, missing = generate_export(db, sku_id, EXPORT_DIR, exported_by)
+    if missing:
+        return ExportResult(export_path=None, blocked_fields=missing, message="Export blocked")
+    return ExportResult(export_path=path, blocked_fields=None, message="Export generated")
+
+
+@app.post("/api/er/resolve", response_model=ERDecisionOut)
+def resolve_er(observed_identifiers: list[str] = Form(...), db: Session = Depends(get_db)):
+    sku_id, score, explanation, needs_review, source = resolve_entities(db, observed_identifiers)
     if not sku_id:
         raise HTTPException(status_code=404, detail="No candidate SKU found")
-    decision = store_decision(db, payload.evidence_id, sku_id, score, explanation, needs_review, source)
+    decision = store_decision(db, sku_id, score, explanation, needs_review, source)
     return ERDecisionOut(
         sku_id=decision.sku_id,
         match_score=decision.match_score,
@@ -145,7 +209,7 @@ def resolve_er(payload: ERResolveRequest, db: Session = Depends(get_db)):
     )
 
 
-@app.post("/er/confirm/{decision_id}")
+@app.post("/api/er/confirm/{decision_id}")
 def confirm_er(decision_id: int, db: Session = Depends(get_db)):
     decision = db.query(ERDecision).filter(ERDecision.id == decision_id).first()
     if not decision:
@@ -155,29 +219,3 @@ def confirm_er(decision_id: int, db: Session = Depends(get_db)):
     decision.needs_review = False
     db.commit()
     return {"status": "confirmed"}
-
-
-@app.get("/skus", response_model=list[SKUStatusOut])
-def list_skus(db: Session = Depends(get_db)):
-    skus = db.query(SKU).all()
-    return [SKUStatusOut(sku_id=sku.id, name=sku.name, status=sku.status) for sku in skus]
-
-
-@app.get("/fields/{sku_id}", response_model=list[FieldCandidateOut])
-def get_fields(sku_id: str, db: Session = Depends(get_db)):
-    candidates = db.query(FieldCandidate).filter(FieldCandidate.sku_id == sku_id).all()
-    return candidates
-
-
-@app.post("/qa/resolve/{sku_id}")
-def resolve_sku_conflicts(sku_id: str, db: Session = Depends(get_db)):
-    status, blocked = resolve_conflicts(db, sku_id)
-    return {"status": status, "blocked_fields": blocked}
-
-
-@app.post("/export/{sku_id}", response_model=ExportResult)
-def export_sku(sku_id: str, exported_by: str = Form("system"), db: Session = Depends(get_db)):
-    path, missing = generate_export(db, sku_id, EXPORT_DIR, exported_by)
-    if missing:
-        return ExportResult(export_path=None, blocked_fields=missing, message="Export blocked")
-    return ExportResult(export_path=path, blocked_fields=None, message="Export generated")

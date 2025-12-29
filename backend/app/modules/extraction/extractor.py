@@ -4,8 +4,8 @@ from PyPDF2 import PdfReader
 import openpyxl
 
 WEIGHT_PATTERNS = {
-    "gross_weight": re.compile(r"gross\s*weight\s*[:=]?\s*(\d+(?:\.\d+)?)\s*(kg|g|lb)", re.IGNORECASE),
-    "net_weight": re.compile(r"net\s*weight\s*[:=]?\s*(\d+(?:\.\d+)?)\s*(kg|g|lb)", re.IGNORECASE),
+    "gross_weight_kg": re.compile(r"gross\s*weight\s*[:=]?\s*(\d+(?:\.\d+)?)\s*(kg|g|lb)", re.IGNORECASE),
+    "net_weight_kg": re.compile(r"net\s*weight\s*[:=]?\s*(\d+(?:\.\d+)?)\s*(kg|g|lb)", re.IGNORECASE),
 }
 
 DIM_PATTERN = re.compile(
@@ -47,9 +47,9 @@ def parse_fields(text: str) -> List[Dict[str, str]]:
         l_val, l_unit, w_val, w_unit, h_val, h_unit = dim_match.groups()
         candidates.extend(
             [
-                {"field_name": "length", "raw_value": f"{l_val} {l_unit}"},
-                {"field_name": "width", "raw_value": f"{w_val} {w_unit}"},
-                {"field_name": "height", "raw_value": f"{h_val} {h_unit}"},
+                {"field_name": "carton_length_mm", "raw_value": f"{l_val} {l_unit}"},
+                {"field_name": "carton_width_mm", "raw_value": f"{w_val} {w_unit}"},
+                {"field_name": "carton_height_mm", "raw_value": f"{h_val} {h_unit}"},
             ]
         )
     capacity = CAPACITY_PATTERN.search(text)

@@ -13,13 +13,28 @@ docker compose up --build
 * UI: http://localhost:8000/
 * Health check: `GET /health`
 
+On container start, Alembic migrations run automatically and the seed script populates five scenarios if the database is empty.
+
+## Migrations + Seeds (Manual)
+
+```bash
+cd backend
+alembic upgrade head
+python -m app.seed
+```
+
 ## Repository Layout
 
 ```
 backend/               FastAPI backend
-backend/db/init.sql    Schema + seed data
+backend/migrations     Alembic migrations
+backend/app/seed.py    Seed scenarios (runs on startup)
 backend/app/modules    Evidence, ER, extraction, normalization, QA, export
 data/seeds             Synthetic scenarios and evidence
+
+## Database Connection
+
+The app reads `DATABASE_URL` from the environment (required) and is compatible with Postgres 17 on DigitalOcean.
 ```
 
 ## Seeded Demo Scenarios
@@ -37,54 +52,54 @@ Each scenario ships with:
 
 ## Demo Walkthrough (Curl)
 
-### 1) Upload evidence (Scenario 01)
+### 1) List seeded SKUs
+```bash
+curl http://localhost:8000/api/skus
+```
+
+### 2) Upload evidence (Scenario 01)
 ```bash
 curl -F "evidence_id=EV-S01-001" \
-  -F "source_type=manufacturer_datasheet" \
-  -F "capture_date=2024-01-10T00:00:00" \
-  -F "issuer=Alpha Energy" \
+  -F "source_type=manufacturer_pdf" \
+  -F "captured_at=2024-01-10T00:00:00" \
+  -F "issuer=Voltix Labs" \
   -F "reliability_score=0.9" \
-  -F "scope=SKU-ALPHA-1000" \
   -F "file=@data/seeds/scenario_01/evidence/ev-s01-spec.txt" \
-  http://localhost:8000/evidence/upload
+  http://localhost:8000/api/evidence
 ```
 
-### 2) Trigger extraction + normalization
+### 3) Trigger extraction + normalization
 ```bash
-curl -X POST http://localhost:8000/extraction/run/EV-S01-001
+curl -X POST -F "evidence_id=EV-S01-001" \
+  http://localhost:8000/api/extract/11111111-1111-1111-1111-111111111111
 ```
 
-### 3) View SKU status + field mappings
+### 4) Validate conflicts (Scenario 03)
 ```bash
-curl http://localhost:8000/skus
-curl http://localhost:8000/fields/SKU-ALPHA-1000
-```
-
-### 4) Resolve conflict (Scenario 03)
-```bash
-curl -X POST http://localhost:8000/qa/resolve/SKU-BETA-1500
+curl -X POST http://localhost:8000/api/validate/44444444-4444-4444-4444-444444444444
 ```
 
 ### 5) Confirm ER mapping (Scenario 02)
 ```bash
-curl -X POST http://localhost:8000/er/confirm/2
+curl -X POST http://localhost:8000/api/er/confirm/2
 ```
 
 ### 6) Generate ERP export
 ```bash
-curl -X POST -F "exported_by=demo" http://localhost:8000/export/SKU-ALPHA-1000
+curl -X POST -F "sku_id=11111111-1111-1111-1111-111111111111" \
+  -F "exported_by=demo" \
+  http://localhost:8000/api/export
 ```
 
 ### 7) Run change detection (Scenario 05)
 ```bash
-curl -F "evidence_id=EV-S05-001" \
-  -F "source_type=official_update" \
-  -F "capture_date=2024-05-01T00:00:00" \
+curl -F "evidence_id=EV-S05-002" \
+  -F "source_type=website" \
+  -F "captured_at=2024-05-01T00:00:00" \
   -F "issuer=Nomad Official" \
   -F "reliability_score=0.8" \
-  -F "scope=SKU-NOMAD-700" \
   -F "file=@data/seeds/scenario_05/evidence/ev-s05-updated.txt" \
-  http://localhost:8000/evidence/upload
+  http://localhost:8000/api/evidence
 ```
 
 ## Notes

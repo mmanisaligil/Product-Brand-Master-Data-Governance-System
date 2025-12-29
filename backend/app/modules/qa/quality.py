@@ -1,6 +1,6 @@
 from typing import List, Tuple
 from sqlalchemy.orm import Session
-from ...models import FieldCandidate, ConflictLog, SKU
+from ...models import FieldValue, ConflictLog, SKU
 
 PRIORITY = {
     "manufacturer": 3,
@@ -10,11 +10,11 @@ PRIORITY = {
 }
 
 REQUIRED_FIELDS = {
-    "gross_weight",
-    "net_weight",
-    "length",
-    "width",
-    "height",
+    "gross_weight_kg",
+    "net_weight_kg",
+    "carton_length_mm",
+    "carton_width_mm",
+    "carton_height_mm",
     "capacity_wh",
     "inverter_w",
 }
@@ -28,7 +28,7 @@ def infer_priority(evidence_source: str) -> int:
 
 
 def resolve_conflicts(db: Session, sku_id: str) -> Tuple[str, List[str]]:
-    candidates = db.query(FieldCandidate).filter(FieldCandidate.sku_id == sku_id).all()
+    candidates = db.query(FieldValue).filter(FieldValue.sku_id == sku_id).all()
     blocked_fields = []
     status = "verified"
 
@@ -37,7 +37,7 @@ def resolve_conflicts(db: Session, sku_id: str) -> Tuple[str, List[str]]:
         grouped.setdefault(candidate.field_name, []).append(candidate)
 
     for field_name, items in grouped.items():
-        values = {item.normalized_value or item.raw_value for item in items}
+        values = {f"{item.value}{item.unit or ''}" for item in items}
         if len(values) == 1:
             for item in items:
                 item.status = "verified"
@@ -61,7 +61,7 @@ def resolve_conflicts(db: Session, sku_id: str) -> Tuple[str, List[str]]:
                         sku_id=sku_id,
                         field_name=field_name,
                         resolution="blocked",
-                        chosen_candidate_id=None,
+                        chosen_field_value_id=None,
                         note="Conflict unresolved: equal reliability.",
                     )
                 )
@@ -78,7 +78,7 @@ def resolve_conflicts(db: Session, sku_id: str) -> Tuple[str, List[str]]:
                         sku_id=sku_id,
                         field_name=field_name,
                         resolution="auto_prefer_high_reliability",
-                        chosen_candidate_id=top.id,
+                        chosen_field_value_id=top.id,
                         note="Resolved by source priority.",
                     )
                 )
@@ -98,11 +98,11 @@ def validate_required_fields(db: Session, sku_id: str) -> List[str]:
     missing = []
     for field_name in REQUIRED_FIELDS:
         candidate = (
-            db.query(FieldCandidate)
+            db.query(FieldValue)
             .filter(
-                FieldCandidate.sku_id == sku_id,
-                FieldCandidate.field_name == field_name,
-                FieldCandidate.status == "verified",
+                FieldValue.sku_id == sku_id,
+                FieldValue.field_name == field_name,
+                FieldValue.status == "verified",
             )
             .first()
         )

@@ -2,15 +2,15 @@ import csv
 import os
 from datetime import datetime
 from sqlalchemy.orm import Session
-from ...models import FieldCandidate, Versioning
+from ...models import FieldValue, ExportEvent
 from ..qa.quality import validate_required_fields
 
 REQUIRED_FIELDS = [
-    "gross_weight",
-    "net_weight",
-    "length",
-    "width",
-    "height",
+    "gross_weight_kg",
+    "net_weight_kg",
+    "carton_length_mm",
+    "carton_width_mm",
+    "carton_height_mm",
     "capacity_wh",
     "inverter_w",
 ]
@@ -24,15 +24,18 @@ def generate_export(db: Session, sku_id: str, export_dir: str, exported_by: str)
     fields = {field: None for field in REQUIRED_FIELDS}
     for field in REQUIRED_FIELDS:
         candidate = (
-            db.query(FieldCandidate)
+            db.query(FieldValue)
             .filter(
-                FieldCandidate.sku_id == sku_id,
-                FieldCandidate.field_name == field,
-                FieldCandidate.status == "verified",
+                FieldValue.sku_id == sku_id,
+                FieldValue.field_name == field,
+                FieldValue.status == "verified",
             )
             .first()
         )
-        fields[field] = candidate.normalized_value or candidate.raw_value
+        value = candidate.value
+        if candidate.unit:
+            value = f"{value} {candidate.unit}"
+        fields[field] = value
 
     os.makedirs(export_dir, exist_ok=True)
     filename = f"export_{sku_id}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.csv"
@@ -42,14 +45,11 @@ def generate_export(db: Session, sku_id: str, export_dir: str, exported_by: str)
         writer.writeheader()
         writer.writerow({"sku_id": sku_id, **fields})
 
-    version = Versioning(
+    export_event = ExportEvent(
         sku_id=sku_id,
-        master_version=1,
         export_version=1,
-        last_exported_at=datetime.utcnow(),
-        exported_by=exported_by,
         change_type="data_fix",
     )
-    db.add(version)
+    db.add(export_event)
     db.commit()
     return path, None

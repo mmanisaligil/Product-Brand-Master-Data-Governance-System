@@ -1,2 +1,2 @@
-sku_id,gross_weight,net_weight,length,width,height,capacity_wh,inverter_w
-SKU-ALPHA-1000,12.500 kg,11.800 kg,400.0 mm,250.0 mm,300.0 mm,1024 Wh,1200 W
+sku_id,gross_weight_kg,net_weight_kg,carton_length_mm,carton_width_mm,carton_height_mm,capacity_wh,inverter_w
+11111111-1111-1111-1111-111111111111,12.500 kg,11.800 kg,400.0 mm,250.0 mm,300.0 mm,1024 Wh,1200 W

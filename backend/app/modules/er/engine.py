@@ -2,11 +2,11 @@ from sqlalchemy.orm import Session
 from typing import List, Tuple
 from ...models import SKUAlias, ERDecision
 
-STRONG_ALIAS_TYPES = {"sku", "ean", "supplier_code", "erp_sku"}
-MEDIUM_ALIAS_TYPES = {"model_name", "capacity_fingerprint"}
+STRONG_ALIAS_TYPES = {"ERP_SKU", "EAN", "SUPPLIER_CODE"}
+MEDIUM_ALIAS_TYPES = {"MODEL_NAME", "CAPACITY_FINGERPRINT"}
 
 
-def resolve_entities(db: Session, evidence_id: str, identifiers: List[str]) -> Tuple[str, float, str, bool, str]:
+def resolve_entities(db: Session, identifiers: List[str]) -> Tuple[str, float, str, bool, str]:
     matches = {}
     for identifier in identifiers:
         alias = db.query(SKUAlias).filter(SKUAlias.alias_value == identifier).first()
@@ -39,9 +39,8 @@ def resolve_entities(db: Session, evidence_id: str, identifiers: List[str]) -> T
     return sku_id, score, explanation, needs_review, source
 
 
-def store_decision(db: Session, evidence_id: str, sku_id: str, match_score: float, explanation: str, needs_review: bool, decision_source: str) -> ERDecision:
+def store_decision(db: Session, sku_id: str, match_score: float, explanation: str, needs_review: bool, decision_source: str) -> ERDecision:
     decision = ERDecision(
-        evidence_id=evidence_id,
         sku_id=sku_id,
         match_score=match_score,
         match_explanation=explanation,

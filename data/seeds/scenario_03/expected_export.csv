@@ -1,2 +1,2 @@
-sku_id,gross_weight,net_weight,length,width,height,capacity_wh,inverter_w
-SKU-BETA-1500,14.000 kg,13.000 kg,420.0 mm,280.0 mm,310.0 mm,1500 Wh,1800 W
+sku_id,gross_weight_kg,net_weight_kg,carton_length_mm,carton_width_mm,carton_height_mm,capacity_wh,inverter_w
+44444444-4444-4444-4444-444444444444,14.000 kg,13.000 kg,420.0 mm,280.0 mm,310.0 mm,1500 Wh,1800 W
