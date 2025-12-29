@@ -9,6 +9,7 @@ COPY backend/app ./app
 COPY backend/alembic.ini ./alembic.ini
 COPY backend/migrations ./migrations
 COPY backend/entrypoint.sh ./entrypoint.sh
+COPY data /data
 
 ENV PYTHONPATH=/app
 

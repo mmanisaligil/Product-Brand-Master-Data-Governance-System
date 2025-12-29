@@ -1,4 +1,5 @@
 import hashlib
+import os
 from datetime import datetime
 from sqlalchemy.orm import Session
 from .db import SessionLocal
@@ -6,6 +7,8 @@ from .models import SKU, SKUAlias, Evidence, FieldValue, ERDecision, ConflictLog
 
 
 def hash_file(path: str) -> str:
+    if not os.path.exists(path):
+        raise RuntimeError(f"Seed evidence file missing: {path}")
     hasher = hashlib.sha256()
     with open(path, "rb") as handle:
         for chunk in iter(lambda: handle.read(8192), b""):
@@ -78,14 +81,15 @@ def seed():
         ]
     )
 
-    evidence_alpha_path = "/data/seeds/scenario_01/evidence/ev-s01-spec.txt"
-    evidence_delta_path = "/data/seeds/scenario_02/evidence/ev-s02-sheet.txt"
-    evidence_beta_m_path = "/data/seeds/scenario_03/evidence/ev-s03-manufacturer.txt"
-    evidence_beta_r_path = "/data/seeds/scenario_03/evidence/ev-s03-reseller.txt"
-    evidence_travel_path = "/data/seeds/scenario_04/evidence/ev-s04-broker.txt"
-    evidence_travel_alt_path = "/data/seeds/scenario_04/evidence/ev-s04-broker-alt.txt"
-    evidence_nomad_initial_path = "/data/seeds/scenario_05/evidence/ev-s05-initial.txt"
-    evidence_nomad_updated_path = "/data/seeds/scenario_05/evidence/ev-s05-updated.txt"
+    seed_dir = os.getenv("SEED_DATA_DIR", "/data/seeds")
+    evidence_alpha_path = os.path.join(seed_dir, "scenario_01/evidence/ev-s01-spec.txt")
+    evidence_delta_path = os.path.join(seed_dir, "scenario_02/evidence/ev-s02-sheet.txt")
+    evidence_beta_m_path = os.path.join(seed_dir, "scenario_03/evidence/ev-s03-manufacturer.txt")
+    evidence_beta_r_path = os.path.join(seed_dir, "scenario_03/evidence/ev-s03-reseller.txt")
+    evidence_travel_path = os.path.join(seed_dir, "scenario_04/evidence/ev-s04-broker.txt")
+    evidence_travel_alt_path = os.path.join(seed_dir, "scenario_04/evidence/ev-s04-broker-alt.txt")
+    evidence_nomad_initial_path = os.path.join(seed_dir, "scenario_05/evidence/ev-s05-initial.txt")
+    evidence_nomad_updated_path = os.path.join(seed_dir, "scenario_05/evidence/ev-s05-updated.txt")
 
     evidence_alpha = Evidence(
         id="EV-S01-001",
