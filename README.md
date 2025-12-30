@@ -15,6 +15,11 @@ docker compose up --build
 
 On container start, Alembic migrations run automatically and the seed script populates five scenarios if the database is empty.
 
+To reset the database locally:
+```bash
+rm -f data/app.db
+```
+
 ## Migrations + Seeds (Manual)
 
 ```bash
@@ -31,10 +36,11 @@ backend/migrations     Alembic migrations
 backend/app/seed.py    Seed scenarios (runs on startup)
 backend/app/modules    Evidence, ER, extraction, normalization, QA, export
 data/seeds             Synthetic scenarios and evidence
+```
 
 ## Database Connection
 
-The app reads `DATABASE_URL` from the environment (required) and is compatible with Postgres 17 on DigitalOcean.
+The app defaults to SQLite at `sqlite:////data/app.db` (via `DATABASE_URL`) and runs fully offline. The database file lives under `./data/app.db` and is persisted by the Docker volume bind.
 ```
 
 ## Seeded Demo Scenarios

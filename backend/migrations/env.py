@@ -13,7 +13,7 @@ target_metadata = Base.metadata
 
 
 def get_url():
-    return os.getenv("DATABASE_URL")
+    return os.getenv("DATABASE_URL", "sqlite:////data/app.db")
 
 
 def run_migrations_offline():

@@ -1,6 +1,8 @@
 #!/bin/sh
 set -e
 
+mkdir -p /data
+
 echo "Starting migrations..."
 if ! alembic upgrade head; then
   echo "ERROR: Alembic migrations failed."

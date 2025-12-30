@@ -1,31 +1,15 @@
 version: "3.9"
 
 services:
-  db:
-    image: postgres:16
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: masterdata
-    volumes:
-      - db_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-
   backend:
     build:
       context: .
       dockerfile: backend/Dockerfile
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/masterdata
+      DATABASE_URL: sqlite:////data/app.db
       EVIDENCE_DIR: /data/evidence
       EXPORT_DIR: /data/exports
     volumes:
       - ./data:/data
     ports:
       - "8000:8000"
-    depends_on:
-      - db
-
-volumes:
-  db_data:
