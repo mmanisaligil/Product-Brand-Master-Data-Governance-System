@@ -41,6 +41,8 @@ data/seeds             Synthetic scenarios and evidence
 ## Database Connection
 
 The app defaults to SQLite at `sqlite:////data/app.db` (via `DATABASE_URL`) and runs fully offline. The database file lives under `./data/app.db` and is persisted by the Docker volume bind.
+
+If your platform expects a specific port (e.g., 8080), set `PORT=8080` in the environment so Uvicorn binds correctly.
 ```
 
 ## Seeded Demo Scenarios

@@ -3,6 +3,8 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 import os
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:////data/app.db")
+if DATABASE_URL.startswith("postgres"):
+    raise RuntimeError("Postgres URLs are not supported in SQLite mode. Use sqlite:////data/app.db")
 
 connect_args = {}
 if DATABASE_URL.startswith("sqlite"):
