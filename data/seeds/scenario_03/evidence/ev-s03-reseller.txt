@@ -1,0 +1,4 @@
+Model: PowerStation Beta 1500
+Gross Weight: 15.2 kg
+Net Weight: 13.0 kg
+Dimensions: 420 mm x 280 mm x 310 mm

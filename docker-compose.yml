@@ -1,0 +1,15 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      DATABASE_URL: sqlite:////data/app.db
+      EVIDENCE_DIR: /data/evidence
+      EXPORT_DIR: /data/exports
+    volumes:
+      - ./data:/data
+    ports:
+      - "8000:8000"

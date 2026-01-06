@@ -1,0 +1,6 @@
+Model: TravelPower 500
+Gross Weight: 8.0 kg
+Net Weight: 6.5 kg
+Dimensions: 300 mm x 200 mm x 220 mm
+Capacity: 512 Wh
+Inverter Power: 500 W

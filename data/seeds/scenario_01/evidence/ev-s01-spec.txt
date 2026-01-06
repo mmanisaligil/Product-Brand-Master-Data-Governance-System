@@ -1,0 +1,6 @@
+Model: PowerStation Alpha 1000
+Gross Weight: 12.5 kg
+Net Weight: 11.8 kg
+Dimensions: 400 mm x 250 mm x 300 mm
+Capacity: 1024 Wh
+Inverter Power: 1200 W

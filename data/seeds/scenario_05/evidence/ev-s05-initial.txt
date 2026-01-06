@@ -1,0 +1,6 @@
+Model: Nomad 700
+Gross Weight: 9.5 kg
+Net Weight: 8.9 kg
+Dimensions: 350 mm x 220 mm x 240 mm
+Capacity: 768 Wh
+Inverter Power: 700 W

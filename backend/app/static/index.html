@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Product & Brand Master Data Governance System</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 2rem; }
+      section { margin-bottom: 2rem; padding: 1rem; border: 1px solid #ddd; }
+      label { display: block; margin-top: 0.5rem; }
+      table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+      th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
+      .status { font-weight: bold; }
+    </style>
+  </head>
+  <body>
+    <h1>Product & Brand Master Data Governance System</h1>
+
+    <section>
+      <h2>Evidence Upload</h2>
+      <form id="upload-form">
+        <label>Evidence ID (optional) <input name="evidence_id" /></label>
+        <label>Source Type <input name="source_type" required /></label>
+        <label>Captured At (ISO) <input name="captured_at" required /></label>
+        <label>Issuer <input name="issuer" required /></label>
+        <label>Reliability Score <input name="reliability_score" type="number" step="0.1" required /></label>
+        <label>Page/Section <input name="page_section" /></label>
+        <label>File <input name="file" type="file" required /></label>
+        <button type="submit">Upload Evidence</button>
+      </form>
+      <pre id="upload-result"></pre>
+    </section>
+
+    <section>
+      <h2>SKU Status</h2>
+      <button id="refresh-skus">Refresh</button>
+      <table>
+        <thead>
+          <tr><th>SKU ID</th><th>Brand</th><th>Name</th><th>Status</th></tr>
+        </thead>
+        <tbody id="sku-table"></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Export ERP CSV</h2>
+      <label>SKU ID <input id="export-sku" /></label>
+      <button id="export-btn">Generate Export</button>
+      <pre id="export-result"></pre>
+    </section>
+
+    <script>
+      const uploadForm = document.getElementById('upload-form');
+      uploadForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const formData = new FormData(uploadForm);
+        const response = await fetch('/api/evidence', { method: 'POST', body: formData });
+        const result = await response.json();
+        document.getElementById('upload-result').textContent = JSON.stringify(result, null, 2);
+      });
+
+      document.getElementById('refresh-skus').addEventListener('click', async () => {
+        const response = await fetch('/api/skus');
+        const skus = await response.json();
+        const table = document.getElementById('sku-table');
+        table.innerHTML = '';
+        skus.forEach((sku) => {
+          const row = document.createElement('tr');
+          row.innerHTML = `<td>${sku.id}</td><td>${sku.brand}</td><td>${sku.canonical_name}</td><td class="status">${sku.status}</td>`;
+          table.appendChild(row);
+        });
+      });
+
+      document.getElementById('export-btn').addEventListener('click', async () => {
+        const skuId = document.getElementById('export-sku').value;
+        const formData = new FormData();
+        formData.append('sku_id', skuId);
+        formData.append('exported_by', 'ui');
+        const response = await fetch('/api/export', { method: 'POST', body: formData });
+        const result = await response.json();
+        document.getElementById('export-result').textContent = JSON.stringify(result, null, 2);
+      });
+    </script>
+  </body>
+</html>
